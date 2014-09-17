@@ -1,0 +1,34 @@
+use warnings;
+use strict;
+
+use File::Spec::Functions qw/catfile/;
+use Exporter qw/import/;
+
+our @EXPORT_OK = qw/grep_c_files/;
+
+sub grep_c_files
+{
+   local $/;
+   my @res;
+   my $pattern = shift;
+   my @dirs    = @_;
+
+   while (my $dir = shift $dirs) {
+      opendir my $dh, $dir;
+         foreach (map { unless ($_ eq '.' or $_ eq '..') { catfile $dir, $_ } else {()} } readdir $dh) {
+            if (-d $_) {
+               push @dirs, $_;
+            } elsif ($_ =~ m/\.c$/) {
+               open my $fh, '<', $_;
+                  if (<$fh> =~ $pattern) {
+                     push @res, $_
+                  }
+               close $fh;
+            }
+         }
+      closedir $dh;
+   }
+
+   \@res
+}
+
