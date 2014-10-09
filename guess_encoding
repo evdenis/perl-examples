@@ -1,0 +1,32 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use utf8;
+use Encode::Detect::Detector;
+
+my $d = Encode::Detect::Detector->new();
+
+foreach (@ARGV) {
+   if ( -f $_ ) {
+      my $fd;
+      unless(open($fd, '<:raw', $_)) {
+         warn "cannot open $_: $!\n";
+         next
+      }
+
+      read $fd, my $bytes, 0x10000;
+      $d->handle($bytes);
+      $d->eof();
+      my $charset = $d->getresult;
+      $d->reset;
+
+      print "File $_ encoding: " . ($charset || 'unknown') . "\n";
+
+      close $fd;
+   } else {
+      warn "$_ - is not a regular file\n"
+   }
+}
+
