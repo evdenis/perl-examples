@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+use autodie;
+
+my $dir = "$ENV{HOME}/.ssh";
+
+my $key = "$dir/id_rsa";
+my $pub_key = "${key}.pub";
+
+die("$0 should have no more then one argument.\n")
+   if @ARGV > 1;
+
+
+my $type = $ARGV[0] // 'default';
+my $nkey = "${key}-${type}";
+my $pub_nkey = "${nkey}.pub";
+
+die("Can't find $nkey and $pub_nkey\n")
+   unless (-e $nkey && -e $pub_nkey);
+
+
+if (-l $key && -l $pub_key ) {
+   unlink $key, $pub_key;
+
+   symlink $nkey,     $key;
+   print "id_rsa --> $nkey\n";
+   symlink $pub_nkey, $pub_key;
+   print "id_rsa.pub --> $pub_nkey\n";
+} else {
+   warn "$key and $pub_key are not symlinks.\n"
+}
+
