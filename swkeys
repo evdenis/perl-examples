@@ -15,11 +15,19 @@ die("$0 should have no more then one argument.\n")
 
 
 my $type = $ARGV[0] // 'default';
-my $nkey = "${key}-${type}";
-my $pub_nkey = "${nkey}.pub";
+my $nkey;
+my $pub_nkey;
+
+foreach my $k ("${key}-${type}", "${key}_${type}", "${key}${type}") {
+   my $pk = "${k}.pub";
+   if (-e $k && -e $pk) {
+      $nkey    = $k;
+      $pub_nkey = $pk;
+   }
+}
 
 die("Can't find $nkey and $pub_nkey\n")
-   unless (-e $nkey && -e $pub_nkey);
+   unless ($nkey && $pub_nkey);
 
 
 if (-l $key && -l $pub_key ) {
@@ -30,6 +38,6 @@ if (-l $key && -l $pub_key ) {
    symlink $pub_nkey, $pub_key;
    print "id_rsa.pub --> $pub_nkey\n";
 } else {
-   warn "$key and $pub_key are not symlinks.\n"
+   die "$key and $pub_key are not symlinks.\n"
 }
 
