@@ -4,40 +4,84 @@ use warnings;
 use strict;
 
 use autodie;
+use Getopt::Long;
+use Term::ANSIColor qw/:constants/;
+
 
 my $dir = "$ENV{HOME}/.ssh";
 
 my $key = "$dir/id_rsa";
 my $pub_key = "${key}.pub";
 
-die("$0 should have no more then one argument.\n")
-   if @ARGV > 1;
 
-
-my $type = $ARGV[0] // 'default';
-my $nkey;
-my $pub_nkey;
-
-foreach my $k ("${key}-${type}", "${key}_${type}", "${key}${type}") {
-   my $pk = "${k}.pub";
-   if (-e $k && -e $pk) {
-      $nkey    = $k;
-      $pub_nkey = $pk;
-   }
-}
-
-die("Can't find $nkey and $pub_nkey\n")
-   unless ($nkey && $pub_nkey);
-
-
-if (-l $key && -l $pub_key ) {
-   unlink $key, $pub_key;
-
-   symlink $nkey,     $key;
-   print "id_rsa --> $nkey\n";
-   symlink $pub_nkey, $pub_key;
-   print "id_rsa.pub --> $pub_nkey\n";
+my $real_key = readlink $key;
+if ($real_key) {
+   my $real_pub_key = readlink $pub_key;
+   die "$pub_key should be symbolic link\n"
+      unless $real_pub_key;
+   die "$key and $pub_key are pointing to different keys\n"
+      if "$real_key.pub" ne $real_pub_key;
 } else {
-   die "$key and $pub_key are not symlinks.\n"
+   die "$key should be symbolic link\n"
 }
 
+my $status;
+
+GetOptions(
+   "status|s!" => \$status,
+) or die("Error in command line arguments\n");
+
+
+if ($status) {
+   die "Redundant arguments '@ARGV'\n"
+      if @ARGV;
+
+   opendir(my $dh, $dir);
+   my @files = sort grep { m/\Aid_rsa[^.]+(?!\.pub\Z)\Z/ } readdir($dh);
+   closedir($dh);
+
+   my $real_key_rel = substr($real_key, rindex($real_key, '/') + 1);
+   foreach (@files) {
+      if ($_ eq $real_key_rel) {
+         print BOLD, RED, "$_\n", RESET;
+      } else {
+         print BOLD, WHITE, "$_\n", RESET;
+      }
+   }
+} else {
+   my $type = $ARGV[0];
+   if (@ARGV) {
+      $type = shift @ARGV;
+      die "Redundant arguments '@ARGV'\n"
+         if @ARGV;
+   } else {
+      $type = 'default'
+   }
+
+   my $nkey;
+   my $pub_nkey;
+
+   foreach my $k ("${key}-${type}", "${key}_${type}", "${key}${type}") {
+      my $pk = "${k}.pub";
+      if (-e $k && -e $pk) {
+         $nkey    = $k;
+         $pub_nkey = $pk;
+      }
+   }
+
+   die("Can't find id_rsa-$type and id_rsa-$type.pub\n")
+      if (!$nkey || !$pub_nkey);
+
+
+   if (-l $key && -l $pub_key ) {
+      unlink $key, $pub_key;
+
+      symlink $nkey,     $key;
+      print "id_rsa --> $nkey\n";
+      symlink $pub_nkey, $pub_key;
+      print "id_rsa.pub --> $pub_nkey\n";
+   } else {
+      die "$key and $pub_key are not symlinks.\n"
+   }
+
+}
